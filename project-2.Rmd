@@ -1,0 +1,232 @@
+---
+title: "Project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE,
+                      warning = FALSE, error = TRUE,
+                      fig.height = 3)
+library(tidyverse)
+```
+
+
+## STAT 240 DIS 316: Group 3 Project Draft
+
+### Group Members:
+
+-   JT Vespalec
+
+-   Darwish Rahim
+
+-   Xinyi Yang
+
+-   Sabah Khondaker
+
+-   Zach Peter
+
+### Introduction
+
+As climate change becomes more prevalent worldwide, shifts in weather patterns have become increasingly apparent. Precipitation trends, in particular, are key indicators of how climate change impacts a given area, influencing agriculture, water resources, and the environment. As the global climate changes, scientists have raised concerns about changing precipitation patterns across the United States and the world. Although changes in precipitation alone do not necessarily imply climate change, they are a fundamental part of broader climate patterns.
+
+For our project, we are focusing specifically on the Midwest region of the United States. The question we aim to answer is: Has the average annual precipitation in the Midwest significantly changed due to climate change between the time periods 1980–2000 and 2001–2020?
+
+This question matters because shifts in precipitation patterns can have major impacts across the regions, so understanding these changes helps improve climate adaptation strategies. We hope to better understand whether the effects of climate change are evident in long-term precipitation patterns within the Midwest.
+
+We concluded that we do not have convincing evidence that the mean annual precipitation between 1980-2000 and 2001-2020 is different.
+
+### Background
+
+#### Data Sources
+
+**Raw Data**: The raw data was collected from NCEI Regional Time Series, collected and maintained by National Centers for Environmental Information. This set of data tracks the precipitation in the upper Midwest areas from 1980-2000 and 2000-2020. This data was collected as each year progressed, each year The total precipitation in inches was recorded. This data set collected totals from 1980-2020.
+
+-   [1980-2000 precipitation data](https://www.ncei.noaa.gov/access/monitoring/climate-at-a-glance/regional/time-series/102/pcp/1/0/1980-2000)
+-   [2000-2020 precipitation data](https://www.ncei.noaa.gov/access/monitoring/climate-at-a-glance/regional/time-series/102/pcp/1/0/2000-2020)
+
+```{r}
+precip_1980_2000 <- read.csv("../../project/1980_2000_data.csv")
+precip_2000_2020 <- read_csv("../../project/2000_2020_data.csv")
+```
+
+#### About this Data
+
+In this study, the Midwest refers to the eight states typically considered part of the “Upper Midwest” per NOAA's regional breakdown: Illinois, Indiana, Iowa, Michigan, Minnesota, Missouri, Ohio, and Wisconsin. The data was collected from the NOAA National Centers for Environmental Information (NCEI), which manages and provides access to one of the world’s largest archives of environmental data.
+
+#### Variables
+
+-   **Annual/Seasonal Precipitation:** Quantifies the precipitation in inches, annually and seasonally, across the two study periods.
+
+-   **Time Intervals:** Denotes each month within the specified years.
+
+#### **Data Structure**
+
+-   **Single Row Representation:** Each row signifies the mean monthly precipitation within each year.
+
+-   **Population Representation:** The broader data context includes precipitation data from across the United States, though our focus is on the Midwest.
+
+-   **Sample Size:** Consists of 504 data points in total, with 252 from each time interval.
+
+    -   We chose to use monthly precipitation averages instead of yearly totals so we could see more detailed seasonal patterns and have more data points to make our analysis stronger.
+
+#### **Data Cleansing and Processing & Supporting Graph**
+
+The data set was processed to ensure accuracy and relevance for analysis. Months with insufficient or no data provided were excluded, which did not apply since we are using each month as an interval. The cleaned data set was grouped by month to calculate the mean, standard deviation, and sample size for each group.
+
+```{r}
+#Combine dataset and make it unique
+combined_precip <- rbind(precip_1980_2000, precip_2000_2020) %>% distinct(Date, Value, .keep_all = TRUE) #Edit Data to get combined Dataset w/ no duplicates
+
+#Fix the dates, so it looks visually appealing 
+combined_precip$Date <- as.Date(paste0(combined_precip$Date, "01"), format = "%Y%m%d")
+
+plot_1980_2020 <- ggplot(combined_precip, aes(x = Date, y = Value))+
+  geom_smooth() +
+  labs (title = 'Precipitation vs Time', x = "Date (year)", y = "Precipitation (in)") +
+  theme_light()
+
+plot_1980_2020
+```
+
+Meaning: The precipitation remained stable up until 2005, where there was an increase in the avg precipitation. By 2020, the average was about 3in as opposed to 1980 where it was about 2.6in.
+
+```{r}
+#Fix the dates, so it looks visually appealing 
+precip_1980_2000$Date <- as.Date(paste0(precip_1980_2000$Date, "01"), format = "%Y%m%d")
+precip_2000_2020$Date <- as.Date(paste0(precip_2000_2020$Date, "01"), format = "%Y%m%d")
+
+#filter out 2000, so only one data set would have it
+precip_2001_2020 <- combined_precip %>%
+  filter(Date > "2000-12-01")
+
+#Residual plot 
+
+model_1980_2000 <- lm(Value ~ Date, data = precip_1980_2000)
+model_2001_2020 <- lm(Value ~ Date, data = precip_2001_2020)
+model_all_data <- lm(Value~ Date, data = combined_precip)
+
+precip_1980_2000$residuals <- resid(model_1980_2000)
+precip_2001_2020$residuals <- resid(model_2001_2020)
+
+residual_plot <- ggplot() +
+  geom_point(data = precip_1980_2000, aes(x = Date, y = residuals), color = "blue", size = 1) +
+  geom_smooth(data = precip_1980_2000, aes(x = Date, y = residuals), method = "lm", se = FALSE) +
+  geom_point(data = precip_2001_2020, aes(x = Date, y = residuals), color = "green", size = 1) +
+  geom_smooth(data = precip_2001_2020, aes(x = Date, y = residuals), method = "lm", se = FALSE) +  geom_hline(yintercept = 0) +
+  labs(title = "Residual Plot w/ Both Data Sets", y = "Residuals", x = "Date") +
+  theme_minimal()
+
+residual_plot
+```
+
+```{r}
+# Residual plot, but with combined data set
+combined_precip$residuals <- resid(model_all_data)
+ggplot(combined_precip, aes(x = Date, y = residuals)) +
+  geom_point(color = 'lightgreen') +
+  geom_hline(yintercept = 0, linetype = "dashed", color= 'darkred') +
+  labs(title = "Residual Plot: Precipitation over Time (combined)",
+       y = "Residuals",
+       x = "Date") +
+  theme_minimal()
+```
+
+There are two residual plots, one made with the combined data set while the other was made with each data set (1980 - 2000 & 2000-2020).
+
+[Heteroscedasticity]{.underline}: The spread seems fairly scatter, but in towards the end there are more vertical spread. This means a mostly normal hetetroscedasticity.
+
+[Linearity]{.underline}: The residuals seem to be scattered fairly evenly across time - this means the linearity assumption hold up.
+
+### **Statistical Analysis**
+
+-   A two-sided hypothesis test will be done where Ho: μ1 = μ2 and Ha: μ1 ≠ μ2.
+
+-   Parameters of Interest: μ1 is the average amount of precipitation over each month between 1980 and 2000 and μ2 is the average amount of precipitation over each month between 2001 and 2020.
+
+**Assumptions**
+
+-   [Independence]{.underline}: We can assume independence for our data sets since precipitation levels from a given year do not depend on precipitation levels from any other year.
+
+-   [Symmetric]{.underline}: The data set is approximately symmetric.
+
+**Test Statistic and Null Distribution**
+
+```{r}
+#filter out 2000, so only one data set would have it
+precip_2001_2020 <- combined_precip %>%
+  filter(Date > "2000-12-01")
+
+x_bar <- mean(precip_1980_2000$Value)
+y_bar <- mean(precip_2001_2020$Value)
+
+s1 <- sd(precip_1980_2000$Value)
+s2 <- sd(precip_2001_2020$Value)
+
+n1 <- nrow(precip_1980_2000)
+n2 <- nrow(precip_2001_2020)
+
+se <- sqrt((s1^2 / n1) + (s2^2 / n2))
+
+t_stat <- (x_bar - y_bar) / se
+
+df <- ( (s1^2 / n1 + s2^2 / n2)^2 ) / 
+      ( ((s1^2 / n1)^2) / (n1 - 1) + ((s2^2 / n2)^2) / (n2 - 1) )
+
+p_val <- 2 * pt(-abs(t_stat), df)
+
+cat("t =", t_stat, "\ndf =", df, "\np-value =", p_val, "\n")
+```
+
+```{r}
+#filter out 2000, so only one data set would have it
+precip_2001_2020 <- combined_precip %>%
+  filter(Date > "2000-12-01")
+
+value_1980_2000 <- precip_1980_2000$Value 
+value_2001_2020 <- precip_2001_2020$Value
+t.test(value_1980_2000,value_2001_2020) 
+## H₀: μ₁ − μ₂ = 0 (means are equal) H₁: μ₁ − μ₂  ≠ 0( μ1 ≠ μ2) 
+```
+
+$p\text{-value} = 0.304$
+
+#### **Results and Interpretation**
+
+We fail to reject the null hypothesis because our p-value is greater than alpha (). Therefore, we do not have convincing evidence that the true mean difference between mean of precipitation over each month between 1980 and 200 0and mean of precipitation over each month between 2001 and 2020 is different.
+
+### **Discussion**
+
+#### **Further Interpretation**
+
+Since we rejected the null hypothesis that the mean precipitation from 1980–2000 and 2001–2020 are equal, there is statistically significant evidence of a change in precipitation in the Midwest. This suggests that precipitation patterns have not significantly shifted over time. The slight increase can be influenced by a range of factors, including climate change, environmental variability, human activities, and the region's adaptability. For instance, El Niño and La Niña are recurring climatic events that affect global weather by altering air circulation, ocean temperatures, and moisture distribution. The observed changes in precipitation may reflect the combined effects of human-induced climate change and natural climate variability. These findings highlight the importance of continued monitoring and adaptable environmental planning in the Midwest. 
+
+#### For Non-Statistical Readers
+
+Our analysis shows that there is no significant change in average monthly precipitation in the Midwest between the two periods. While small differences in precipitation might actually exist, they are not large enough to conclude that a meaningful shift has occurred. Although precipitation patterns may still be influenced by factors like climate change, many other factors including natural weather cycles, changes in land use, and atmospheric patterns also contribute.
+
+#### **Shortcomings of the Analysis**
+
+-   Confounding variables: Climate change is not the only factor that influences the levels of precipitation. Precipitation can also be influenced by elevation, proximity to bodies of water, different latitudes, patterns of air masses, and human-related activities. While climate change is a main driver of precipitation change, it certainly is not the only factor.
+
+-   Data collection discrepancies: Weather-related technology has significantly improved since 1980, so the techniques by which the data was collected for each year might not be completely accurate for older years.
+
+-   Missing data: Both data sets had missing values, so we had to clean the data to remove those values. Those missing values affect the summary statistics of the data and could have an impact on the overall results.
+
+-   Time Span: The analysis is limited to a 20-year period for each interval. A longer time span would provide better insight into precipitation trends and would make the data easier to compare.
+
+#### **Additional Questions and Recommendations for Future Research**
+
+**Additional Questions**
+
+-   Are specific states or sub-regions within the Midwest more affected than others?
+
+-   Are other climate indicators (e.g., temperature, humidity) also shifting significantly in the Midwest during the same periods?
+
+-   Is the variability/standard deviation of precipitation also changing over time?
+
+**Recommendations**
+
+-   Create larger time intervals: Incorporating more recent data could confirm whether the trend continues or if there are signs of stabilization or reversal.
+
+-   Analyze other causes of precipitation change: Explore potential causes like changes in jet stream patterns, increased evaporation due to rising temperatures, or human factors such as deforestation or urbanization.
+
